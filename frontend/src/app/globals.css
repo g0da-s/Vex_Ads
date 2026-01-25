@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
 :root {
   --background: #0A0A0F;
   --foreground: #FAFAFA;
@@ -21,18 +19,19 @@ body {
   overflow-x: hidden;
   background-color: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', system-ui, sans-serif;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.gradient-text {
+  background: linear-gradient(135deg, #8B5CF6 0%, #22D3EE 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
+.glow {
+  box-shadow: 0 0 40px rgba(139, 92, 246, 0.3);
 }
 
-::-webkit-scrollbar-track {
-  background: 
+.glow-sm {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+}
