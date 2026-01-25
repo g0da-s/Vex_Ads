@@ -14,23 +14,27 @@ export default function Hero() {
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse delay-1000" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        {/* Trust badge */}
+        {/* Trust badge - Trustpilot style */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center space-x-2 bg-surface/50 backdrop-blur-sm border border-border rounded-full px-4 py-2 mb-8 mt-8"
+          className="inline-flex items-center space-x-3 bg-[#00b67a]/10 backdrop-blur-sm border border-[#00b67a]/30 rounded-lg px-5 py-3 mb-8 mt-8"
         >
           <div className="flex items-center space-x-1">
             {[...Array(5)].map((_, i) => (
-              <svg key={i} className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
+              <div key={i} className="w-6 h-6 bg-[#00b67a] flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </div>
             ))}
           </div>
-          <span className="text-zinc-400 text-sm">4.9</span>
-          <span className="text-zinc-500">|</span>
-          <span className="text-zinc-400 text-sm">Trusted by 500+ marketers</span>
+          <div className="flex items-center space-x-2">
+            <span className="text-white font-semibold text-base">4.8</span>
+            <span className="text-zinc-400">|</span>
+            <span className="text-zinc-300 text-sm">Trusted by <span className="font-semibold">2,200+</span> users</span>
+          </div>
         </motion.div>
 
         {/* Main headline */}
