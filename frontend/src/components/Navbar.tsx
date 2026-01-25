@@ -18,19 +18,6 @@ export default function Navbar() {
             <span className="text-xl font-bold text-white">VexAds</span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link href="#features" className="text-zinc-400 hover:text-white transition-colors">
-              Features
-            </Link>
-            <Link href="#pricing" className="text-zinc-400 hover:text-white transition-colors">
-              Pricing
-            </Link>
-            <Link href="#faq" className="text-zinc-400 hover:text-white transition-colors">
-              FAQ
-            </Link>
-          </div>
-
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center space-x-4">
             <Link
@@ -66,15 +53,6 @@ export default function Navbar() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border">
             <div className="flex flex-col space-y-4">
-              <Link href="#features" className="text-zinc-400 hover:text-white transition-colors">
-                Features
-              </Link>
-              <Link href="#pricing" className="text-zinc-400 hover:text-white transition-colors">
-                Pricing
-              </Link>
-              <Link href="#faq" className="text-zinc-400 hover:text-white transition-colors">
-                FAQ
-              </Link>
               <Link
                 href="/login"
                 className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-medium transition-colors text-center"
