@@ -113,7 +113,7 @@ export default function DashboardPage() {
       }
 
       const data = await response.json()
-      setCompetitorAds(data.ads)
+      setCompetitorAds(data.competitor_ads || [])
       setCurrentStep('generate')
     } catch (err: any) {
       setError(err.message)
@@ -344,12 +344,12 @@ export default function DashboardPage() {
 
           {currentStep === 'generate' && (
             <div>
-              <h2 className="text-2xl font-bold text-white mb-2">Found {competitorAds.length} Ads</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Found {competitorAds?.length || 0} Ads</h2>
               <p className="text-zinc-400 mb-8">Our AI identified the top winners. Ready to generate your ads?</p>
 
               {/* Winner ads preview */}
               <div className="grid grid-cols-3 gap-4 mb-8">
-                {competitorAds.slice(0, 3).map((ad, i) => (
+                {(competitorAds || []).slice(0, 3).map((ad, i) => (
                   <div key={ad.id || i} className="bg-zinc-800 rounded-lg p-3">
                     <div className="aspect-square bg-zinc-700 rounded mb-2 flex items-center justify-center overflow-hidden">
                       {ad.image_url ? (
