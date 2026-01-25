@@ -20,6 +20,9 @@ module.exports = {
         success: '#10B981',
         error: '#EF4444',
       },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
     },
   },
   plugins: [],
