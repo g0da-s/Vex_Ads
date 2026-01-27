@@ -9,7 +9,10 @@ httpx>=0.26.0
 # Supabase
 supabase>=2.0.0
 
-# Google Gemini AI
+# Anthropic Claude AI (for ad copy generation)
+anthropic>=0.40.0
+
+# Google Gemini AI (optional - for future image generation)
 google-genai>=1.0.0
 
 # Image Processing

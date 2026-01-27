@@ -79,6 +79,8 @@ class StorageService:
         bucket: str,
         path: str,
         expires_in: Optional[int] = None,
+        download: bool = False,
+        download_filename: Optional[str] = None,
     ) -> str:
         """
         Generate a signed URL for private file access.
@@ -87,6 +89,8 @@ class StorageService:
             bucket: Storage bucket name
             path: File path within bucket
             expires_in: URL expiry time in seconds (default from settings)
+            download: If True, add Content-Disposition header to force download
+            download_filename: Optional custom filename for download
 
         Returns:
             Signed URL string
@@ -94,9 +98,21 @@ class StorageService:
         if expires_in is None:
             expires_in = settings.signed_url_expiry_seconds
 
+        options = {"expiresIn": expires_in}
+
+        # Add download transformation if requested
+        if download:
+            # Extract filename from path if not provided
+            if not download_filename:
+                download_filename = path.split("/")[-1]
+
+            # Use Supabase's download parameter in signed URL
+            options["download"] = download_filename
+
         response = self.supabase.storage.from_(bucket).create_signed_url(
             path=path,
             expires_in=expires_in,
+            options=options if download else None,
         )
         return response["signedURL"]
 

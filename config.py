@@ -20,16 +20,11 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_key: str
 
-    # Meta Ad Library API (optional - used if SearchAPI not available)
-    meta_app_id: str = ""
-    meta_app_secret: str = ""
+    # Anthropic Claude API (for ad copy generation)
+    anthropic_api_key: str
 
-    # SearchAPI (for Meta Ad Library)
-    searchapi_key: str
-
-    # Google Gemini
-    gemini_api_key: str
-
+    # Google Gemini (optional - for image generation in Phase 2)
+    gemini_api_key: str = ""
 
     # Application
     debug: bool = True
@@ -42,13 +37,7 @@ class Settings(BaseSettings):
 
     # Supabase Storage bucket names
     bucket_user_assets: str = "user-assets"
-    bucket_competitor_ads: str = "competitor-ads"
     bucket_generated_ads: str = "generated-ads"
-
-    @property
-    def meta_access_token(self) -> str:
-        """Generate Meta API access token in app_id|app_secret format."""
-        return f"{self.meta_app_id}|{self.meta_app_secret}"
 
     @property
     def max_file_size_bytes(self) -> int:

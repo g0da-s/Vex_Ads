@@ -1,10 +1,11 @@
 """
 Pydantic schemas for request/response validation.
+AdAngle - Framework-driven ad generator.
 """
 
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 from enum import Enum
 
 
@@ -18,23 +19,16 @@ class AssetType(str, Enum):
     LOGO = "logo"
 
 
-# ============================================================================
-# Base Models
-# ============================================================================
-
-class TimestampMixin(BaseModel):
-    """Mixin for created_at timestamp."""
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+class AdFramework(str, Enum):
+    """Marketing psychology frameworks for ad generation."""
+    PAS = "Problem-Agitate-Solution"
+    SOCIAL_PROOF = "Social Proof"
+    TRANSFORMATION = "Transformation"
 
 
 # ============================================================================
 # Session Schemas
 # ============================================================================
-
-class SessionCreate(BaseModel):
-    """Schema for creating a new session."""
-    pass  # No fields needed, auto-generated
-
 
 class SessionResponse(BaseModel):
     """Schema for session response."""
@@ -52,100 +46,126 @@ class AssetUploadResponse(BaseModel):
     asset_type: AssetType
     storage_path: str
     original_filename: str
-    image_url: str  # Signed URL for viewing
+    image_url: str
 
 
 class AssetsUploadResponse(BaseModel):
-    """Response after uploading both assets."""
+    """Response after uploading assets."""
     session_id: str
     product_image: AssetUploadResponse
-    logo: AssetUploadResponse
+    logo: Optional[AssetUploadResponse] = None
     message: str = "Assets uploaded successfully"
 
 
 # ============================================================================
-# Competitor Ad Schemas
-# ============================================================================
-
-class CompetitorAnalyzeRequest(BaseModel):
-    """Request to analyze competitor ads."""
-    session_id: str
-    ad_library_url: str = Field(
-        ...,
-        description="Facebook Ad Library URL with view_all_page_id parameter",
-        examples=["https://www.facebook.com/ads/library/?view_all_page_id=123456789"],
-    )
-
-
-class CompetitorAdResponse(BaseModel):
-    """Schema for a single competitor ad."""
-    id: str
-    page_id: str
-    page_name: Optional[str] = None
-    ad_id: str
-    ad_text: Optional[str] = None
-    image_url: str  # Signed URL for viewing
-    impressions_lower: Optional[int] = None
-    impressions_upper: Optional[int] = None
-    ad_delivery_start: Optional[datetime] = None
-    is_active: bool = False
-    days_running: Optional[int] = None
-    winner_score: float = 0.0  # Higher = more likely a winning ad
-
-
-class CompetitorAnalyzeResponse(BaseModel):
-    """Response after analyzing competitor ads."""
-    session_id: str
-    page_id: str
-    ads_found: int
-    ads_downloaded: int
-    competitor_ads: List[CompetitorAdResponse]
-    message: str = "Competitor ads analyzed successfully"
-
-
-# ============================================================================
-# Ad Generation Schemas
+# Ad Generation Schemas (AdAngle)
 # ============================================================================
 
 class GenerateAdsRequest(BaseModel):
-    """Request to generate new ads."""
-    session_id: str
-    competitor_ad_id: Optional[str] = Field(
-        default=None,
-        description="Optional: specific competitor ad ID. If not provided, uses top winners automatically.",
+    """Request to generate ads using marketing frameworks."""
+    session_id: str = Field(
+        ...,
+        description="Session ID from asset upload",
     )
-    num_variations: int = Field(
-        default=1,
-        ge=1,
-        le=3,
-        description="Number of ad variations to generate per winner (1-3)",
+    product: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="What do you sell? (product or service name)",
+        examples=["Organic protein powder", "Online yoga classes", "Project management SaaS"],
     )
-    product_description: Optional[str] = Field(
-        default=None,
-        description="Optional description of the product for better results",
+    target_customer: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Who buys it? (target audience)",
+        examples=["Busy professionals who want to stay fit", "Beginners looking to reduce stress"],
     )
-    max_winners: int = Field(
-        default=3,
-        ge=1,
-        le=5,
-        description="How many top winners to use for generation (1-5)",
+    main_benefit: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="What problem does it solve? (key benefit)",
+        examples=["Build muscle without spending hours cooking", "Find calm in just 10 minutes a day"],
     )
 
 
-class GeneratedAdResponse(BaseModel):
-    """Schema for a single generated ad."""
-    id: str
-    download_url: str  # Signed URL for download
-    competitor_ad_id: str
-    created_at: datetime
+class GeneratedAd(BaseModel):
+    """A single generated ad using a specific framework."""
+    framework: AdFramework = Field(
+        ...,
+        description="The marketing psychology framework used",
+    )
+    hook: str = Field(
+        ...,
+        description="Attention-grabbing headline (5-8 words)",
+    )
+    body: str = Field(
+        ...,
+        description="Main ad copy (2-3 sentences)",
+    )
+    cta: str = Field(
+        ...,
+        description="Call-to-action text (3-5 words)",
+    )
+    visual_concept: str = Field(
+        ...,
+        description="Description of what the ad image should show",
+    )
 
 
 class GenerateAdsResponse(BaseModel):
-    """Response after generating ads."""
+    """Response containing 3 generated ads with different frameworks."""
     session_id: str
-    generated_count: int
-    generated_ads: List[GeneratedAdResponse]
+    product: str
+    ads: List[GeneratedAd] = Field(
+        ...,
+        min_length=3,
+        max_length=3,
+        description="Three ads using different psychological frameworks",
+    )
+    generation_time_ms: int = Field(
+        ...,
+        description="Time taken to generate ads in milliseconds",
+    )
     message: str = "Ads generated successfully"
+
+
+# ============================================================================
+# Stored Ad Schema (for database)
+# ============================================================================
+
+class StoredAdSet(BaseModel):
+    """Schema for a stored ad set in the database."""
+    id: str
+    session_id: str
+    product: str
+    target_customer: str
+    main_benefit: str
+
+    # Ad 1 - PAS
+    ad1_framework: str
+    ad1_hook: str
+    ad1_body: str
+    ad1_cta: str
+    ad1_visual_concept: str
+
+    # Ad 2 - Social Proof
+    ad2_framework: str
+    ad2_hook: str
+    ad2_body: str
+    ad2_cta: str
+    ad2_visual_concept: str
+
+    # Ad 3 - Transformation
+    ad3_framework: str
+    ad3_hook: str
+    ad3_body: str
+    ad3_cta: str
+    ad3_visual_concept: str
+
+    generation_time_ms: int
+    created_at: datetime
 
 
 # ============================================================================
@@ -156,8 +176,3 @@ class ErrorResponse(BaseModel):
     """Schema for error responses."""
     detail: str
     error_code: Optional[str] = None
-
-
-class ValidationErrorResponse(BaseModel):
-    """Schema for validation error responses."""
-    detail: List[dict]

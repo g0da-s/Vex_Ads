@@ -1,269 +1,183 @@
 """
-AI Ad Generator service using Google Gemini.
-Generates new ad creatives based on competitor ad patterns.
+AI Ad Generator service using Anthropic Claude.
+Generates ad copy using proven marketing psychology frameworks.
 """
 
-import base64
-from typing import Optional, List
+import json
+import time
+from typing import List
 
-from google import genai
-from google.genai import types
+import anthropic
 
 from config import get_settings
+from models.schemas import GeneratedAd, AdFramework
 
 settings = get_settings()
 
-# Initialize Gemini client
-client = genai.Client(api_key=settings.gemini_api_key)
+# Initialize Anthropic client
+client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
-# Model for image generation
-# Only gemini-2.0-flash-exp supports multimodal input WITH image output
-IMAGE_GENERATION_MODEL = "gemini-2.0-flash-exp"
+# System prompt for direct-response copywriting
+SYSTEM_PROMPT = """You are a world-class direct-response copywriter specializing in Facebook/Instagram ads.
 
-# Default generation prompt template
-DEFAULT_GENERATION_PROMPT = """You are an expert advertising creative director. Create a professional Facebook advertisement image.
+CORE PRINCIPLES:
+- Specificity > Vagueness ("Save 3 hours/day" not "Save time")
+- Benefits > Features ("Sleep better tonight" not "Memory foam technology")
+- One clear CTA per ad
+- Use numbers when possible
+- Active voice, present tense
+- Speak directly to the reader ("you", "your")
 
-ANALYZE the competitor ad provided to understand:
-- Layout and composition patterns
-- Color palette and mood
-- Text placement and hierarchy
-- Background style and lighting
-- Overall aesthetic and brand feel
+FRAMEWORKS TO USE:
 
-CREATE a new advertisement that:
-1. Features the provided PRODUCT IMAGE prominently as the hero product
-2. Incorporates the provided LOGO naturally (subtle placement, corner or bottom)
-3. Matches the competitor's overall aesthetic and professional quality
-4. Is suitable for Facebook/Instagram feed (square format preferred)
+1. Problem/Agitate/Solution (PAS):
+   - Hook: Call out the specific pain point
+   - Body: Agitate the problem, show consequences of not solving it
+   - CTA: Present your solution as the answer
 
-IMPORTANT REQUIREMENTS:
-- Generate a complete, polished advertisement image
-- The product must be the clear focal point
-- Maintain professional, high-quality appearance
-- Do NOT copy the competitor ad directly - create something inspired but original
-- Include subtle branding with the logo
-- Use clean, modern design principles
+2. Social Proof:
+   - Hook: Lead with an impressive number, stat, or testimonial
+   - Body: Show specific transformation or results others achieved
+   - CTA: Invite them to join the successful group
 
-OUTPUT: A single, ready-to-use advertisement image."""
+3. Transformation:
+   - Hook: Describe their current frustrating state (relatable)
+   - Body: Paint the aspirational future state they desire
+   - CTA: Position your product as the bridge between the two
+
+STRICT RULES:
+- Hook: EXACTLY 5-8 words. Punchy. Curiosity-inducing.
+- Body: EXACTLY 2-3 sentences. Specific benefits, not vague promises.
+- CTA: EXACTLY 3-5 words. Action-oriented verb.
+- Visual concept: Brief description of what the ad image should show.
+
+AVOID:
+- Clichés ("game-changer", "revolutionary", "unlock your potential")
+- Vague claims ("best", "amazing", "incredible")
+- More than 3 sentences in body
+- ALL CAPS or excessive punctuation (!!!)
+- Emojis in hooks or CTAs
+- Generic stock photo descriptions
+
+OUTPUT FORMAT:
+Return ONLY valid JSON array with exactly 3 ad objects. No markdown, no explanation."""
 
 
-class RateLimitError(Exception):
-    """Raised when Gemini API rate limit is hit."""
-    pass
+USER_PROMPT_TEMPLATE = """Create 3 Facebook ad concepts for this product. Each MUST use a DIFFERENT framework.
+
+PRODUCT: {product}
+TARGET CUSTOMER: {target_customer}
+KEY BENEFIT: {main_benefit}
+
+Generate exactly 3 ads:
+1. First ad: Use Problem/Agitate/Solution (PAS) framework
+2. Second ad: Use Social Proof framework
+3. Third ad: Use Transformation framework
+
+Return as JSON array:
+[
+  {{
+    "framework": "Problem-Agitate-Solution",
+    "hook": "5-8 word attention grabber",
+    "body": "2-3 sentences of compelling copy",
+    "cta": "3-5 word call to action",
+    "visual_concept": "What the ad image should show"
+  }},
+  {{
+    "framework": "Social Proof",
+    "hook": "...",
+    "body": "...",
+    "cta": "...",
+    "visual_concept": "..."
+  }},
+  {{
+    "framework": "Transformation",
+    "hook": "...",
+    "body": "...",
+    "cta": "...",
+    "visual_concept": "..."
+  }}
+]
+
+Make each ad SPECIFIC to this product and customer. No generic copy."""
 
 
-def build_generation_prompt(
-    competitor_ad_text: Optional[str] = None,
-    product_description: Optional[str] = None,
-    style_notes: Optional[str] = None,
-) -> str:
+async def generate_ads(
+    product: str,
+    target_customer: str,
+    main_benefit: str,
+) -> tuple[List[GeneratedAd], int]:
     """
-    Build a customized generation prompt.
+    Generate 3 ad concepts using different marketing frameworks.
 
     Args:
-        competitor_ad_text: Text from the competitor's ad for style reference
-        product_description: Description of the user's product
-        style_notes: Additional style instructions
+        product: What the user sells
+        target_customer: Who the target audience is
+        main_benefit: The key problem it solves
 
     Returns:
-        Complete prompt string
+        Tuple of (list of 3 GeneratedAd objects, generation time in ms)
     """
-    prompt = DEFAULT_GENERATION_PROMPT
+    start_time = time.time()
 
-    # Add competitor ad text context
-    if competitor_ad_text:
-        prompt += f"\n\nCOMPETITOR AD MESSAGING (for style reference only):\n\"{competitor_ad_text}\"\n"
-        prompt += "Create similar emotional appeal but with ORIGINAL copy."
+    # Build the user prompt
+    user_prompt = USER_PROMPT_TEMPLATE.format(
+        product=product,
+        target_customer=target_customer,
+        main_benefit=main_benefit,
+    )
 
-    # Add product description
-    if product_description:
-        prompt += f"\n\nPRODUCT CONTEXT:\n{product_description}"
+    # Call Claude API
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1500,
+        messages=[
+            {
+                "role": "user",
+                "content": user_prompt,
+            }
+        ],
+        system=SYSTEM_PROMPT,
+    )
 
-    # Add style notes
-    if style_notes:
-        prompt += f"\n\nADDITIONAL STYLE NOTES:\n{style_notes}"
+    # Parse response
+    response_text = message.content[0].text
 
-    return prompt
+    # Clean up response if it has markdown code blocks
+    if "```json" in response_text:
+        response_text = response_text.split("```json")[1].split("```")[0]
+    elif "```" in response_text:
+        response_text = response_text.split("```")[1].split("```")[0]
 
+    response_text = response_text.strip()
 
-async def generate_ad_image(
-    competitor_image: bytes,
-    product_image: bytes,
-    logo_image: bytes,
-    competitor_ad_text: Optional[str] = None,
-    product_description: Optional[str] = None,
-    temperature: float = 0.8,
-) -> Optional[bytes]:
-    """
-    Generate a new ad image using Gemini's multimodal capabilities.
+    # Parse JSON
+    ads_data = json.loads(response_text)
 
-    Args:
-        competitor_image: Competitor ad image bytes
-        product_image: User's product image bytes
-        logo_image: User's logo image bytes
-        competitor_ad_text: Optional text from competitor ad
-        product_description: Optional product description
-        temperature: Generation temperature (0.0-1.0)
+    # Convert to GeneratedAd objects
+    ads = []
+    framework_map = {
+        "Problem-Agitate-Solution": AdFramework.PAS,
+        "PAS": AdFramework.PAS,
+        "Social Proof": AdFramework.SOCIAL_PROOF,
+        "Transformation": AdFramework.TRANSFORMATION,
+    }
 
-    Returns:
-        Generated image bytes or None if generation fails
+    for ad_data in ads_data:
+        framework_str = ad_data.get("framework", "")
+        framework = framework_map.get(framework_str, AdFramework.PAS)
 
-    Raises:
-        RateLimitError: If daily quota is exhausted
-    """
-    try:
-        # Build the prompt
-        prompt = build_generation_prompt(
-            competitor_ad_text=competitor_ad_text,
-            product_description=product_description,
-        )
-
-        # Create content parts with images
-        contents = [
-            "COMPETITOR AD (style reference):",
-            types.Part.from_bytes(data=competitor_image, mime_type="image/jpeg"),
-            "USER'S PRODUCT (feature this):",
-            types.Part.from_bytes(data=product_image, mime_type="image/jpeg"),
-            "USER'S LOGO (incorporate subtly):",
-            types.Part.from_bytes(data=logo_image, mime_type="image/png"),
-            prompt,
-        ]
-
-        # Generate content with image output
-        response = client.models.generate_content(
-            model=IMAGE_GENERATION_MODEL,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                response_modalities=["TEXT", "IMAGE"],
-                temperature=temperature,
-            ),
-        )
-
-        # Extract generated image from response
-        if response.candidates:
-            candidate = response.candidates[0]
-            if candidate.content and candidate.content.parts:
-                for part in candidate.content.parts:
-                    if hasattr(part, "inline_data") and part.inline_data:
-                        # Data is already bytes from Gemini
-                        return part.inline_data.data
-
-        return None
-
-    except Exception as e:
-        error_str = str(e)
-        # Check for rate limit error
-        if "429" in error_str and "RESOURCE_EXHAUSTED" in error_str:
-            if "limit: 0" in error_str or "PerDay" in error_str:
-                raise RateLimitError(
-                    "Gemini API daily quota exhausted. Please enable billing at "
-                    "https://aistudio.google.com/ or wait until tomorrow for quota reset."
-                )
-            raise RateLimitError(f"Gemini API rate limited: {error_str}")
-        print(f"Error generating ad image: {e}")
-        return None
-
-
-async def generate_multiple_ads(
-    competitor_image: bytes,
-    product_image: bytes,
-    logo_image: bytes,
-    competitor_ad_text: Optional[str] = None,
-    product_description: Optional[str] = None,
-    num_variations: int = 3,
-) -> List[bytes]:
-    """
-    Generate multiple ad variations.
-
-    Each variation uses slightly different temperature for diversity.
-
-    Args:
-        competitor_image: Competitor ad image bytes
-        product_image: User's product image bytes
-        logo_image: User's logo image bytes
-        competitor_ad_text: Optional text from competitor ad
-        product_description: Optional product description
-        num_variations: Number of variations to generate (1-5)
-
-    Returns:
-        List of generated image bytes
-
-    Raises:
-        RateLimitError: If daily quota is exhausted (stops immediately)
-    """
-    generated_images = []
-
-    # Base temperature, will vary per generation
-    base_temp = 0.7
-
-    for i in range(num_variations):
-        # Vary temperature for each generation for diversity
-        temp = base_temp + (i * 0.1)
-        temp = min(temp, 1.0)  # Cap at 1.0
-
-        try:
-            image_bytes = await generate_ad_image(
-                competitor_image=competitor_image,
-                product_image=product_image,
-                logo_image=logo_image,
-                competitor_ad_text=competitor_ad_text,
-                product_description=product_description,
-                temperature=temp,
+        ads.append(
+            GeneratedAd(
+                framework=framework,
+                hook=ad_data["hook"],
+                body=ad_data["body"],
+                cta=ad_data["cta"],
+                visual_concept=ad_data["visual_concept"],
             )
-
-            if image_bytes:
-                generated_images.append(image_bytes)
-        except RateLimitError:
-            # Re-raise rate limit errors to stop immediately
-            raise
-
-    return generated_images
-
-
-async def analyze_competitor_ad(image_bytes: bytes) -> dict:
-    """
-    Analyze a competitor ad to extract style insights.
-
-    Useful for understanding the competitor's approach before generation.
-
-    Args:
-        image_bytes: Competitor ad image bytes
-
-    Returns:
-        Dict with analysis results
-    """
-    try:
-        analysis_prompt = """Analyze this Facebook advertisement and provide insights:
-
-1. COLOR_PALETTE: List primary colors used
-2. LAYOUT: Describe the composition (where is the product, text, logo?)
-3. MOOD: What emotion/feeling does this ad convey?
-4. TEXT_STYLE: Typography observations (if visible)
-5. TARGET_AUDIENCE: Who is this ad likely targeting?
-6. CALL_TO_ACTION: How is the CTA presented (if visible)?
-7. OVERALL_QUALITY: Rate 1-10 and explain
-
-Respond in JSON format."""
-
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",  # Use stable model for analysis
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                analysis_prompt,
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-            ),
         )
 
-        # Try to parse JSON response
-        import json
+    # Calculate generation time
+    generation_time_ms = int((time.time() - start_time) * 1000)
 
-        try:
-            return json.loads(response.text)
-        except json.JSONDecodeError:
-            return {"raw_analysis": response.text}
-
-    except Exception as e:
-        print(f"Error analyzing ad: {e}")
-        return {"error": str(e)}
+    return ads, generation_time_ms

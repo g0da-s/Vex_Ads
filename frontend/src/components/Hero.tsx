@@ -56,8 +56,7 @@ export default function Hero() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto mb-8"
         >
-          Analyze competitor Facebook ads, identify winners, and generate
-          high-converting creatives with AI. No design skills needed.
+          AI clones your competitors' best-performing ads and creates winning creatives for you.
         </motion.p>
 
         {/* CTA buttons */}

@@ -1,9 +1,9 @@
 """
-Asset upload routes.
-Handles product image and logo uploads.
+Asset upload routes for AdAngle.
+Handles product image and optional logo uploads.
 """
 
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 from supabase import Client
 
@@ -45,7 +45,6 @@ def validate_image_file(file: UploadFile, field_name: str) -> None:
         )
 
     # Check file size (if available)
-    # Note: file.size may not be available for all upload methods
     if hasattr(file, "size") and file.size:
         if file.size > settings.max_file_size_bytes:
             raise HTTPException(
@@ -61,24 +60,29 @@ async def upload_assets(
         File(description="Product image file (JPEG, PNG, GIF, or WebP)"),
     ],
     logo: Annotated[
-        UploadFile,
-        File(description="Brand logo file (JPEG, PNG, GIF, or WebP)"),
-    ],
+        Optional[UploadFile],
+        File(description="Brand logo file (optional - JPEG, PNG, GIF, or WebP)"),
+    ] = None,
     supabase: Client = Depends(get_supabase),
 ):
     """
-    Upload product image and logo.
+    Upload product image and optional logo.
 
-    Creates a new session and stores both assets in Supabase Storage.
+    Creates a new session and stores assets in Supabase Storage.
     Returns session_id for use in subsequent API calls.
 
     **File Requirements:**
     - Supported formats: JPEG, PNG, GIF, WebP
     - Maximum file size: 10MB per file
+    - Product image: Required
+    - Logo: Optional (for MVP, can be added later)
     """
-    # Validate both files
+    # Validate product image (required)
     validate_image_file(product_image, "product_image")
-    validate_image_file(logo, "logo")
+
+    # Validate logo if provided
+    if logo and logo.filename:
+        validate_image_file(logo, "logo")
 
     # Initialize services
     storage = get_storage_service(supabase)
@@ -89,20 +93,14 @@ async def upload_assets(
         session = db.create_session()
         session_id = session["id"]
 
-        # Read file contents
+        # Read product image
         product_bytes = await product_image.read()
-        logo_bytes = await logo.read()
 
-        # Check file sizes after reading
+        # Check file size after reading
         if len(product_bytes) > settings.max_file_size_bytes:
             raise HTTPException(
                 status_code=400,
                 detail=f"Product image exceeds maximum size of {settings.max_file_size_mb}MB",
-            )
-        if len(logo_bytes) > settings.max_file_size_bytes:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Logo exceeds maximum size of {settings.max_file_size_mb}MB",
             )
 
         # Upload product image to storage
@@ -113,15 +111,7 @@ async def upload_assets(
             folder=session_id,
         )
 
-        # Upload logo to storage
-        logo_upload = storage.upload_file(
-            bucket=settings.bucket_user_assets,
-            file_bytes=logo_bytes,
-            original_filename=logo.filename or "logo.png",
-            folder=session_id,
-        )
-
-        # Save asset records to database
+        # Save product asset to database
         product_asset = db.create_user_asset(
             session_id=session_id,
             asset_type=AssetType.PRODUCT_IMAGE.value,
@@ -129,39 +119,66 @@ async def upload_assets(
             original_filename=product_image.filename or "product.jpg",
         )
 
-        logo_asset = db.create_user_asset(
-            session_id=session_id,
-            asset_type=AssetType.LOGO.value,
-            storage_path=logo_upload["path"],
-            original_filename=logo.filename or "logo.png",
-        )
-
-        # Generate signed URLs for viewing
+        # Generate signed URL for product image
         product_url = storage.get_signed_url(
             bucket=settings.bucket_user_assets,
             path=product_upload["path"],
         )
-        logo_url = storage.get_signed_url(
-            bucket=settings.bucket_user_assets,
-            path=logo_upload["path"],
+
+        # Build product image response
+        product_response = AssetUploadResponse(
+            id=product_asset["id"],
+            asset_type=AssetType.PRODUCT_IMAGE,
+            storage_path=product_upload["path"],
+            original_filename=product_image.filename or "product.jpg",
+            image_url=product_url,
         )
 
-        return AssetsUploadResponse(
-            session_id=session_id,
-            product_image=AssetUploadResponse(
-                id=product_asset["id"],
-                asset_type=AssetType.PRODUCT_IMAGE,
-                storage_path=product_upload["path"],
-                original_filename=product_image.filename or "product.jpg",
-                image_url=product_url,
-            ),
-            logo=AssetUploadResponse(
+        # Handle optional logo
+        logo_response = None
+        if logo and logo.filename:
+            logo_bytes = await logo.read()
+
+            if len(logo_bytes) > settings.max_file_size_bytes:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Logo exceeds maximum size of {settings.max_file_size_mb}MB",
+                )
+
+            # Upload logo to storage
+            logo_upload = storage.upload_file(
+                bucket=settings.bucket_user_assets,
+                file_bytes=logo_bytes,
+                original_filename=logo.filename or "logo.png",
+                folder=session_id,
+            )
+
+            # Save logo asset to database
+            logo_asset = db.create_user_asset(
+                session_id=session_id,
+                asset_type=AssetType.LOGO.value,
+                storage_path=logo_upload["path"],
+                original_filename=logo.filename or "logo.png",
+            )
+
+            # Generate signed URL for logo
+            logo_url = storage.get_signed_url(
+                bucket=settings.bucket_user_assets,
+                path=logo_upload["path"],
+            )
+
+            logo_response = AssetUploadResponse(
                 id=logo_asset["id"],
                 asset_type=AssetType.LOGO,
                 storage_path=logo_upload["path"],
                 original_filename=logo.filename or "logo.png",
                 image_url=logo_url,
-            ),
+            )
+
+        return AssetsUploadResponse(
+            session_id=session_id,
+            product_image=product_response,
+            logo=logo_response,
         )
 
     except HTTPException:
