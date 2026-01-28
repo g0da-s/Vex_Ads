@@ -12,8 +12,9 @@ supabase>=2.0.0
 # Anthropic Claude AI (for ad copy generation)
 anthropic>=0.40.0
 
-# Google Gemini AI (optional - for future image generation)
+# Google Gemini AI (for image generation - Phase 2)
 google-genai>=1.0.0
+google-generativeai>=0.8.0
 
 # Image Processing
 pillow>=10.2.0

@@ -108,7 +108,7 @@ class DatabaseService:
 
         Args:
             session_id: Session UUID
-            asset_type: 'product_image' or 'logo'
+            asset_type: 'product_image', 'logo', or 'brand_image'
 
         Returns:
             Asset record or None
@@ -124,6 +124,29 @@ class DatabaseService:
         )
         return response.data[0] if response.data else None
 
+    def get_user_assets_by_type(
+        self, session_id: str, asset_type: str
+    ) -> list[dict]:
+        """
+        Get all assets of a specific type for a session.
+
+        Args:
+            session_id: Session UUID
+            asset_type: 'brand_image', 'product_image', or 'logo'
+
+        Returns:
+            List of asset records
+        """
+        response = (
+            self.supabase.table("user_assets")
+            .select("*")
+            .eq("session_id", session_id)
+            .eq("asset_type", asset_type)
+            .order("created_at", desc=False)
+            .execute()
+        )
+        return response.data if response.data else []
+
     # =========================================================================
     # Generated Ad Sets (AdAngle)
     # =========================================================================
@@ -131,62 +154,70 @@ class DatabaseService:
     def create_generated_ad_set(
         self,
         session_id: str,
+        brand_name: str,
         product: str,
         target_customer: str,
-        main_benefit: str,
         ads: list,
         generation_time_ms: int,
     ) -> dict:
         """
-        Create a generated ad set record with all 3 framework ads.
+        Create a generated ad set record with all 5 Visual Bible ads.
 
         Args:
             session_id: Session UUID
-            product: Product/service name
+            brand_name: Brand name
+            product: Product/service description
             target_customer: Target audience description
-            main_benefit: Key benefit/problem solved
-            ads: List of 3 GeneratedAd objects
+            ads: List of 5 GeneratedAd objects
             generation_time_ms: Time taken to generate
 
         Returns:
             Created ad set record
         """
-        # Extract data from the 3 ads
+        # Extract data from the 5 ads
         ad1 = ads[0] if len(ads) > 0 else None
         ad2 = ads[1] if len(ads) > 1 else None
         ad3 = ads[2] if len(ads) > 2 else None
+        ad4 = ads[3] if len(ads) > 3 else None
+        ad5 = ads[4] if len(ads) > 4 else None
 
         data = {
             "session_id": session_id,
+            "brand_name": brand_name,
             "product": product,
             "target_customer": target_customer,
-            "main_benefit": main_benefit,
             "generation_time_ms": generation_time_ms,
         }
 
-        # Ad 1 - PAS
+        # Ad 1
         if ad1:
-            data["ad1_framework"] = ad1.framework.value
             data["ad1_hook"] = ad1.hook
-            data["ad1_body"] = ad1.body
-            data["ad1_cta"] = ad1.cta
             data["ad1_visual_concept"] = ad1.visual_concept
+            data["ad1_image_path"] = ad1.image_path
 
-        # Ad 2 - Social Proof
+        # Ad 2
         if ad2:
-            data["ad2_framework"] = ad2.framework.value
             data["ad2_hook"] = ad2.hook
-            data["ad2_body"] = ad2.body
-            data["ad2_cta"] = ad2.cta
             data["ad2_visual_concept"] = ad2.visual_concept
+            data["ad2_image_path"] = ad2.image_path
 
-        # Ad 3 - Transformation
+        # Ad 3
         if ad3:
-            data["ad3_framework"] = ad3.framework.value
             data["ad3_hook"] = ad3.hook
-            data["ad3_body"] = ad3.body
-            data["ad3_cta"] = ad3.cta
             data["ad3_visual_concept"] = ad3.visual_concept
+            data["ad3_image_path"] = ad3.image_path
+
+        # Ad 4
+        if ad4:
+            data["ad4_hook"] = ad4.hook
+            data["ad4_visual_concept"] = ad4.visual_concept
+            data["ad4_image_path"] = ad4.image_path
+
+        # Ad 5
+        if ad5:
+            data["ad5_hook"] = ad5.hook
+            data["ad5_visual_concept"] = ad5.visual_concept
+            data["ad5_image_path"] = ad5.image_path
 
         response = self.supabase.table("generated_ad_sets").insert(data).execute()
         return response.data[0]

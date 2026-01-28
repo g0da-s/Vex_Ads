@@ -6,13 +6,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
 type Step = 'input' | 'generating' | 'results'
+type QuestionStep = 1 | 2 | 3 | 4 | 5 | 6
 
 interface GeneratedAd {
-  framework: string
   hook: string
   body: string
   cta: string
   visual_concept: string
+  image_url?: string
 }
 
 interface GenerateResponse {
@@ -28,14 +29,16 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [currentStep, setCurrentStep] = useState<Step>('input')
+  const [questionStep, setQuestionStep] = useState<QuestionStep>(1)
 
   // Form state
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [productImage, setProductImage] = useState<File | null>(null)
+  const [brandName, setBrandName] = useState('')
   const [logoImage, setLogoImage] = useState<File | null>(null)
+  const [productImage, setProductImage] = useState<File | null>(null)
+  const [brandImages, setBrandImages] = useState<File[]>([])
   const [product, setProduct] = useState('')
   const [targetCustomer, setTargetCustomer] = useState('')
-  const [mainBenefit, setMainBenefit] = useState('')
 
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedAds, setGeneratedAds] = useState<GeneratedAd[]>([])
@@ -64,22 +67,52 @@ export default function DashboardPage() {
     router.push('/')
   }
 
-  const handleGenerate = async () => {
-    // Validate inputs
-    if (!productImage) {
-      setError('Please upload a product image')
+  const handleNextQuestion = () => {
+    setError(null)
+
+    // Validate current step before advancing
+    if (questionStep === 1 && !brandName.trim()) {
+      setError('Please enter your brand name')
       return
     }
-    if (!product.trim()) {
-      setError('Please describe what you sell')
+    if (questionStep === 2 && !logoImage) {
+      setError('Please upload your logo')
       return
     }
-    if (!targetCustomer.trim()) {
+    if (questionStep === 3 && !productImage) {
+      setError('Please upload your product image')
+      return
+    }
+    if (questionStep === 4 && brandImages.length < 3) {
+      setError('Please upload at least 3 brand images (3-5 recommended)')
+      return
+    }
+    if (questionStep === 5 && !product.trim()) {
+      setError('Please describe your product')
+      return
+    }
+    if (questionStep === 6 && !targetCustomer.trim()) {
       setError('Please describe your target customer')
       return
     }
-    if (!mainBenefit.trim()) {
-      setError('Please describe the main benefit')
+
+    if (questionStep < 6) {
+      setQuestionStep((questionStep + 1) as QuestionStep)
+    }
+  }
+
+  const handlePreviousQuestion = () => {
+    setError(null)
+    if (questionStep > 1) {
+      setQuestionStep((questionStep - 1) as QuestionStep)
+    }
+  }
+
+  const handleGenerate = async () => {
+    // Validate all required inputs
+    if (!brandName.trim() || !logoImage || !productImage || brandImages.length < 3 || !product.trim() ||
+        !targetCustomer.trim()) {
+      setError('Please complete all required fields')
       return
     }
 
@@ -90,10 +123,17 @@ export default function DashboardPage() {
     try {
       // Step 1: Upload assets
       const formData = new FormData()
+
+      // Upload logo
+      formData.append('logo', logoImage)
+
+      // Upload product image
       formData.append('product_image', productImage)
-      if (logoImage) {
-        formData.append('logo', logoImage)
-      }
+
+      // Upload multiple brand images
+      brandImages.forEach((image, index) => {
+        formData.append('brand_image', image)
+      })
 
       const uploadResponse = await fetch(`${API_URL}/api/assets/upload`, {
         method: 'POST',
@@ -109,15 +149,15 @@ export default function DashboardPage() {
       const newSessionId = uploadData.session_id
       setSessionId(newSessionId)
 
-      // Step 2: Generate ads
+      // Step 2: Generate ads with Visual Bible workflow
       const generateResponse = await fetch(`${API_URL}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id: newSessionId,
+          brand_name: brandName.trim(),
           product: product.trim(),
           target_customer: targetCustomer.trim(),
-          main_benefit: mainBenefit.trim(),
         }),
       })
 
@@ -133,6 +173,7 @@ export default function DashboardPage() {
     } catch (err: any) {
       setError(err.message)
       setCurrentStep('input')
+      setQuestionStep(1)
     } finally {
       setIsGenerating(false)
     }
@@ -140,48 +181,19 @@ export default function DashboardPage() {
 
   const handleStartOver = () => {
     setCurrentStep('input')
+    setQuestionStep(1)
     setSessionId(null)
-    setProductImage(null)
+    setBrandName('')
     setLogoImage(null)
+    setProductImage(null)
+    setBrandImages([])
     setProduct('')
     setTargetCustomer('')
-    setMainBenefit('')
     setGeneratedAds([])
     setGenerationTime(0)
     setError(null)
   }
 
-  const getFrameworkColor = (framework: string) => {
-    if (framework.includes('Problem') || framework.includes('PAS')) {
-      return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30' }
-    }
-    if (framework.includes('Social')) {
-      return { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30' }
-    }
-    return { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30' }
-  }
-
-  const getFrameworkIcon = (framework: string) => {
-    if (framework.includes('Problem') || framework.includes('PAS')) {
-      return (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-      )
-    }
-    if (framework.includes('Social')) {
-      return (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      )
-    }
-    return (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-      </svg>
-    )
-  }
 
   if (loading) {
     return (
@@ -228,112 +240,71 @@ export default function DashboardPage() {
         {/* Input Step */}
         {currentStep === 'input' && (
           <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white mb-2">Generate 3 Ad Angles</h1>
-              <p className="text-zinc-400">Tell us about your product and we'll create 3 psychologically different ad concepts</p>
+            {/* Progress indicator */}
+            <div className="mb-8">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                {[1, 2, 3, 4, 5, 6].map((step) => (
+                  <div
+                    key={step}
+                    className={`h-2 rounded-full transition-all ${
+                      step < questionStep
+                        ? 'w-8 bg-primary'
+                        : step === questionStep
+                        ? 'w-12 bg-primary'
+                        : 'w-8 bg-zinc-700'
+                    }`}
+                  />
+                ))}
+              </div>
+              <p className="text-center text-zinc-500 text-sm">
+                Step {questionStep} of 6
+              </p>
             </div>
 
-            <div className="bg-surface border border-border rounded-2xl p-8">
-              {/* Product Description */}
-              <div className="space-y-6 mb-8">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    What do you sell?
-                  </label>
+            <div className="bg-surface border border-border rounded-2xl p-8 min-h-[400px] flex flex-col">
+              {/* Question 1: Brand Name */}
+              {questionStep === 1 && (
+                <div className="flex-1 flex flex-col">
+                  <h2 className="text-3xl font-bold text-white mb-3">What's your brand name?</h2>
+                  <p className="text-zinc-400 mb-8">This will appear on your ads</p>
                   <input
                     type="text"
-                    placeholder="e.g., Organic protein powder, Online yoga classes, Project management SaaS"
-                    value={product}
-                    onChange={(e) => setProduct(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-primary transition-colors"
+                    placeholder="e.g., FitFuel, Nike, Apple"
+                    value={brandName}
+                    onChange={(e) => setBrandName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleNextQuestion()}
+                    autoFocus
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-6 py-4 text-white text-lg placeholder-zinc-500 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    Who buys it?
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Busy professionals who want to stay fit, Small business owners"
-                    value={targetCustomer}
-                    onChange={(e) => setTargetCustomer(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    What problem does it solve?
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Build muscle without spending hours cooking, Save 10 hours/week on admin"
-                    value={mainBenefit}
-                    onChange={(e) => setMainBenefit(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Image uploads */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* Product Image */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    Product Image <span className="text-red-400">*</span>
-                  </label>
+              {/* Question 2: Logo Upload */}
+              {questionStep === 2 && (
+                <div className="flex-1 flex flex-col">
+                  <h2 className="text-3xl font-bold text-white mb-3">Upload your logo</h2>
+                  <p className="text-zinc-400 mb-8">This helps establish brand identity in your ads</p>
                   <div
-                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-                      productImage ? 'border-primary bg-primary/5' : 'border-zinc-700 hover:border-zinc-600'
-                    }`}
-                    onClick={() => document.getElementById('product-input')?.click()}
-                  >
-                    {productImage ? (
-                      <div>
-                        <p className="text-primary font-medium truncate">{productImage.name}</p>
-                        <p className="text-zinc-500 text-sm mt-1">Click to change</p>
-                      </div>
-                    ) : (
-                      <div>
-                        <svg className="w-10 h-10 text-zinc-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <p className="text-zinc-400 text-sm">Upload product image</p>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    id="product-input"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => setProductImage(e.target.files?.[0] || null)}
-                  />
-                </div>
-
-                {/* Logo (optional) */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-300 mb-2">
-                    Logo <span className="text-zinc-500">(optional)</span>
-                  </label>
-                  <div
-                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                    className={`flex-1 border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors flex flex-col items-center justify-center ${
                       logoImage ? 'border-primary bg-primary/5' : 'border-zinc-700 hover:border-zinc-600'
                     }`}
                     onClick={() => document.getElementById('logo-input')?.click()}
                   >
                     {logoImage ? (
                       <div>
-                        <p className="text-primary font-medium truncate">{logoImage.name}</p>
-                        <p className="text-zinc-500 text-sm mt-1">Click to change</p>
+                        <svg className="w-16 h-16 text-primary mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-primary font-semibold text-lg mb-1">{logoImage.name}</p>
+                        <p className="text-zinc-500 text-sm">Click to change</p>
                       </div>
                     ) : (
                       <div>
-                        <svg className="w-10 h-10 text-zinc-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-16 h-16 text-zinc-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <p className="text-zinc-400 text-sm">Upload logo (optional)</p>
+                        <p className="text-white font-medium text-lg mb-2">Click to upload logo</p>
+                        <p className="text-zinc-500 text-sm">PNG, JPG, or SVG</p>
                       </div>
                     )}
                   </div>
@@ -345,15 +316,161 @@ export default function DashboardPage() {
                     onChange={(e) => setLogoImage(e.target.files?.[0] || null)}
                   />
                 </div>
-              </div>
+              )}
 
-              <button
-                onClick={handleGenerate}
-                disabled={!productImage || !product || !targetCustomer || !mainBenefit}
-                className="w-full bg-primary hover:bg-primary-hover disabled:bg-zinc-700 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold text-lg transition-colors"
-              >
-                Generate 3 Ad Angles
-              </button>
+              {/* Question 3: Product Image Upload */}
+              {questionStep === 3 && (
+                <div className="flex-1 flex flex-col">
+                  <h2 className="text-3xl font-bold text-white mb-3">Upload your product image</h2>
+                  <p className="text-zinc-400 mb-8">This will be featured in all your ads</p>
+                  <div
+                    className={`flex-1 border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors flex flex-col items-center justify-center ${
+                      productImage ? 'border-primary bg-primary/5' : 'border-zinc-700 hover:border-zinc-600'
+                    }`}
+                    onClick={() => document.getElementById('product-input')?.click()}
+                  >
+                    {productImage ? (
+                      <div>
+                        <svg className="w-16 h-16 text-primary mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-primary font-semibold text-lg mb-1">{productImage.name}</p>
+                        <p className="text-zinc-500 text-sm">Click to change</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <svg className="w-16 h-16 text-zinc-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p className="text-white font-medium text-lg mb-2">Click to upload product image</p>
+                        <p className="text-zinc-500 text-sm">PNG or JPG - clear photo of your product</p>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    id="product-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setProductImage(e.target.files?.[0] || null)}
+                  />
+                </div>
+              )}
+
+              {/* Question 4: Brand Images Upload (3-5 images) */}
+              {questionStep === 4 && (
+                <div className="flex-1 flex flex-col">
+                  <h2 className="text-3xl font-bold text-white mb-3">Upload 3-5 brand images</h2>
+                  <p className="text-zinc-400 mb-8">These will define your brand's visual style</p>
+                  <div
+                    className={`flex-1 border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors flex flex-col items-center justify-center ${
+                      brandImages.length > 0 ? 'border-primary bg-primary/5' : 'border-zinc-700 hover:border-zinc-600'
+                    }`}
+                    onClick={() => document.getElementById('brand-images-input')?.click()}
+                  >
+                    {brandImages.length > 0 ? (
+                      <div>
+                        <svg className="w-16 h-16 text-primary mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-primary font-semibold text-lg mb-1">{brandImages.length} images selected</p>
+                        <p className="text-zinc-500 text-sm">Click to change (3-5 images)</p>
+                        <div className="flex flex-wrap gap-2 justify-center mt-4">
+                          {brandImages.map((img, i) => (
+                            <span key={i} className="text-xs bg-zinc-800 px-2 py-1 rounded">{img.name}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <svg className="w-16 h-16 text-zinc-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p className="text-white font-medium text-lg mb-2">Click to upload 3-5 brand images</p>
+                        <p className="text-zinc-500 text-sm">Product photos, lifestyle shots, brand aesthetics</p>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    id="brand-images-input"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || [])
+                      if (files.length < 3 || files.length > 5) {
+                        setError('Please select 3-5 images')
+                      } else {
+                        setBrandImages(files)
+                        setError(null)
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Question 5: Product Description */}
+              {questionStep === 5 && (
+                <div className="flex-1 flex flex-col">
+                  <h2 className="text-3xl font-bold text-white mb-3">What's your product?</h2>
+                  <p className="text-zinc-400 mb-8">Describe it in one clear sentence</p>
+                  <textarea
+                    placeholder="e.g., Organic plant-based protein powder with 25g protein per serving"
+                    value={product}
+                    onChange={(e) => setProduct(e.target.value)}
+                    autoFocus
+                    rows={3}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-6 py-4 text-white text-lg placeholder-zinc-500 focus:outline-none focus:border-primary transition-colors resize-none"
+                  />
+                </div>
+              )}
+
+              {/* Question 6: Target Customer */}
+              {questionStep === 6 && (
+                <div className="flex-1 flex flex-col">
+                  <h2 className="text-3xl font-bold text-white mb-3">Who is it for?</h2>
+                  <p className="text-zinc-400 mb-8">Describe your ideal customer</p>
+                  <textarea
+                    placeholder="e.g., Busy professionals who work out but struggle to get enough protein"
+                    value={targetCustomer}
+                    onChange={(e) => setTargetCustomer(e.target.value)}
+                    autoFocus
+                    rows={3}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-6 py-4 text-white text-lg placeholder-zinc-500 focus:outline-none focus:border-primary transition-colors resize-none"
+                  />
+                </div>
+              )}
+
+              {/* Navigation buttons */}
+              <div className="flex gap-3 mt-8">
+                {questionStep > 1 && (
+                  <button
+                    onClick={handlePreviousQuestion}
+                    className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition-colors"
+                  >
+                    Back
+                  </button>
+                )}
+
+                {questionStep < 6 && (
+                  <button
+                    onClick={handleNextQuestion}
+                    className="flex-1 bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-semibold text-lg transition-colors"
+                  >
+                    Continue
+                  </button>
+                )}
+
+                {questionStep === 6 && (
+                  <button
+                    onClick={handleGenerate}
+                    className="flex-1 bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-semibold text-lg transition-colors"
+                  >
+                    Generate Ads
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -363,24 +480,24 @@ export default function DashboardPage() {
           <div className="max-w-md mx-auto text-center py-20">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-6" />
             <h2 className="text-2xl font-bold text-white mb-2">Generating Your Ads</h2>
-            <p className="text-zinc-400 mb-8">Applying marketing psychology frameworks...</p>
+            <p className="text-zinc-400 mb-8">Creating 10 unique ad concepts...</p>
 
             <div className="space-y-3 text-left max-w-xs mx-auto">
               <div className="flex items-center text-zinc-400">
                 <div className="w-2 h-2 bg-primary rounded-full mr-3 animate-pulse" />
-                Analyzing your product...
+                Analyzing brand visual style...
               </div>
               <div className="flex items-center text-zinc-400">
                 <div className="w-2 h-2 bg-primary rounded-full mr-3 animate-pulse delay-300" />
-                Applying PAS framework...
+                Generating creative concepts...
               </div>
               <div className="flex items-center text-zinc-400">
                 <div className="w-2 h-2 bg-primary rounded-full mr-3 animate-pulse delay-500" />
-                Crafting social proof angle...
+                Creating on-brand images...
               </div>
               <div className="flex items-center text-zinc-400">
                 <div className="w-2 h-2 bg-primary rounded-full mr-3 animate-pulse delay-700" />
-                Building transformation story...
+                Compositing final ads...
               </div>
             </div>
           </div>
@@ -390,48 +507,51 @@ export default function DashboardPage() {
         {currentStep === 'results' && (
           <div>
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white mb-2">Your 3 Ad Angles</h1>
+              <h1 className="text-3xl font-bold text-white mb-2">Your 10 Ads</h1>
               <p className="text-zinc-400">
-                Generated in {(generationTime / 1000).toFixed(1)} seconds using different psychological frameworks
+                Generated in {(generationTime / 1000).toFixed(1)} seconds using diverse marketing frameworks
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
               {generatedAds.map((ad, index) => {
-                const colors = getFrameworkColor(ad.framework)
                 return (
                   <div
                     key={index}
-                    className={`bg-surface border ${colors.border} rounded-2xl p-6 flex flex-col`}
+                    className="bg-surface border border-zinc-800 rounded-2xl overflow-hidden flex flex-col"
                   >
-                    {/* Framework badge */}
-                    <div className={`inline-flex items-center ${colors.bg} ${colors.text} px-3 py-1.5 rounded-lg text-sm font-medium mb-4 self-start`}>
-                      {getFrameworkIcon(ad.framework)}
-                      <span className="ml-2">{ad.framework}</span>
-                    </div>
+                    {/* Ad Image Preview */}
+                    {ad.image_url ? (
+                      <div className="relative w-full aspect-square bg-zinc-900">
+                        <img
+                          src={ad.image_url}
+                          alt={`Ad ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full aspect-square bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                          <p className="text-zinc-500">Generating image...</p>
+                        </div>
+                      </div>
+                    )}
 
-                    {/* Hook */}
-                    <div className="mb-4">
-                      <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1 block">Hook</label>
-                      <p className="text-xl font-bold text-white leading-tight">{ad.hook}</p>
-                    </div>
-
-                    {/* Body */}
-                    <div className="mb-4 flex-grow">
-                      <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1 block">Body</label>
-                      <p className="text-zinc-300 leading-relaxed">{ad.body}</p>
-                    </div>
-
-                    {/* CTA */}
-                    <div className="mb-4">
-                      <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1 block">Call to Action</label>
-                      <p className={`font-semibold ${colors.text}`}>{ad.cta}</p>
-                    </div>
-
-                    {/* Visual Concept */}
-                    <div className="pt-4 border-t border-zinc-800">
-                      <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1 block">Visual Concept</label>
-                      <p className="text-zinc-400 text-sm italic">{ad.visual_concept}</p>
+                    <div className="p-4">
+                      {/* Download button */}
+                      {ad.image_url && (
+                        <a
+                          href={`${API_URL}/api/generate/download/${sessionId}/${index + 1}`}
+                          download
+                          className="block w-full text-center bg-primary hover:bg-primary-hover text-white px-4 py-3 rounded-xl font-semibold transition-colors"
+                        >
+                          <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download Ad
+                        </a>
+                      )}
                     </div>
                   </div>
                 )

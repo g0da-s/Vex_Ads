@@ -16,14 +16,8 @@ from enum import Enum
 class AssetType(str, Enum):
     """Type of user-uploaded asset."""
     PRODUCT_IMAGE = "product_image"
+    BRAND_IMAGE = "brand_image"
     LOGO = "logo"
-
-
-class AdFramework(str, Enum):
-    """Marketing psychology frameworks for ad generation."""
-    PAS = "Problem-Agitate-Solution"
-    SOCIAL_PROOF = "Social Proof"
-    TRANSFORMATION = "Transformation"
 
 
 # ============================================================================
@@ -67,62 +61,58 @@ class GenerateAdsRequest(BaseModel):
         ...,
         description="Session ID from asset upload",
     )
+    brand_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Brand name",
+        examples=["FitFuel", "Nike", "Apple"],
+    )
     product: str = Field(
         ...,
         min_length=1,
         max_length=500,
-        description="What do you sell? (product or service name)",
-        examples=["Organic protein powder", "Online yoga classes", "Project management SaaS"],
+        description="What's your product? (one sentence description)",
+        examples=["Organic plant-based protein powder with 25g protein per serving"],
     )
     target_customer: str = Field(
         ...,
         min_length=1,
         max_length=500,
-        description="Who buys it? (target audience)",
-        examples=["Busy professionals who want to stay fit", "Beginners looking to reduce stress"],
-    )
-    main_benefit: str = Field(
-        ...,
-        min_length=1,
-        max_length=500,
-        description="What problem does it solve? (key benefit)",
-        examples=["Build muscle without spending hours cooking", "Find calm in just 10 minutes a day"],
+        description="Who is it for? (target audience)",
+        examples=["Busy professionals who work out but struggle to get enough protein"],
     )
 
 
 class GeneratedAd(BaseModel):
-    """A single generated ad using a specific framework."""
-    framework: AdFramework = Field(
-        ...,
-        description="The marketing psychology framework used",
-    )
+    """A single generated ad."""
     hook: str = Field(
         ...,
-        description="Attention-grabbing headline (5-8 words)",
-    )
-    body: str = Field(
-        ...,
-        description="Main ad copy (2-3 sentences)",
-    )
-    cta: str = Field(
-        ...,
-        description="Call-to-action text (3-5 words)",
+        description="Scroll-stopping headline (3-8 words) - the only text on the ad",
     )
     visual_concept: str = Field(
         ...,
         description="Description of what the ad image should show",
     )
+    image_url: Optional[str] = Field(
+        None,
+        description="Signed URL to the generated ad image",
+    )
+    image_path: Optional[str] = Field(
+        None,
+        description="Storage path to the generated ad image",
+    )
 
 
 class GenerateAdsResponse(BaseModel):
-    """Response containing 3 generated ads with different frameworks."""
+    """Response containing 5 generated ads with different frameworks."""
     session_id: str
     product: str
     ads: List[GeneratedAd] = Field(
         ...,
-        min_length=3,
-        max_length=3,
-        description="Three ads using different psychological frameworks",
+        min_length=1,
+        max_length=5,
+        description="Up to 5 ads using different psychological frameworks",
     )
     generation_time_ms: int = Field(
         ...,
@@ -136,33 +126,15 @@ class GenerateAdsResponse(BaseModel):
 # ============================================================================
 
 class StoredAdSet(BaseModel):
-    """Schema for a stored ad set in the database."""
+    """Schema for a stored ad set in the database (10 ads)."""
     id: str
     session_id: str
+    brand_name: str
     product: str
     target_customer: str
-    main_benefit: str
 
-    # Ad 1 - PAS
-    ad1_framework: str
-    ad1_hook: str
-    ad1_body: str
-    ad1_cta: str
-    ad1_visual_concept: str
-
-    # Ad 2 - Social Proof
-    ad2_framework: str
-    ad2_hook: str
-    ad2_body: str
-    ad2_cta: str
-    ad2_visual_concept: str
-
-    # Ad 3 - Transformation
-    ad3_framework: str
-    ad3_hook: str
-    ad3_body: str
-    ad3_cta: str
-    ad3_visual_concept: str
+    # Store ads as JSON array instead of individual fields
+    ads: List[dict]  # Array of ad objects with framework, hook, body, cta, visual_concept, image_path
 
     generation_time_ms: int
     created_at: datetime

@@ -27,45 +27,70 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
+      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-24 pb-16">
         {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-background to-background" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-background to-background" />
 
         {/* Animated background orbs */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/3 right-1/4 w-[500px] h-[500px] bg-accent/10 rounded-full blur-3xl animate-pulse delay-1000" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          {/* Trustpilot Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex items-center justify-center mb-12"
+          >
+            <div className="inline-flex items-center gap-3 bg-[#1a1a2e]/60 backdrop-blur-sm border border-primary/20 rounded-full px-6 py-3">
+              {/* Trustpilot Stars */}
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <svg
+                    key={star}
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="#00b67a"
+                  >
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                ))}
+              </div>
+
+              {/* Rating */}
+              <span className="text-white font-semibold text-lg">4.8</span>
+
+              {/* Divider */}
+              <div className="w-px h-4 bg-zinc-600" />
+
+              {/* Reviews Text */}
+              <span className="text-zinc-400 text-sm">
+                Rated by <span className="text-white font-medium">2,200+ users</span>
+              </span>
+            </div>
+          </motion.div>
+
           {/* Main headline */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight"
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-8 leading-[1.1] tracking-tight"
           >
-            3 Marketing Angles
+            Create winning ads
             <br />
-            <span className="gradient-text">in 90 Seconds</span>
+            <span className="gradient-text">in minutes</span>
           </motion.h1>
 
           {/* Subtitle */}
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto mb-4"
-          >
-            Stop making prettier ads. Start making smarter ads.
-          </motion.p>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15 }}
-            className="text-base text-zinc-500 max-w-xl mx-auto mb-8"
+            className="text-xl sm:text-2xl text-zinc-400 max-w-3xl mx-auto mb-12 leading-relaxed"
           >
-            AI-generated ads using proven psychology frameworks—not templates.
-            No setup. No brand kits. Just psychology that works.
+            A platform that makes it easy to create profitable visual ads.
           </motion.p>
 
           {/* CTA buttons */}
@@ -73,13 +98,13 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12"
+            className="flex items-center justify-center mb-20"
           >
             <Link
               href="/dashboard"
-              className="w-full sm:w-auto bg-primary hover:bg-primary-hover text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all hover:scale-105 glow-sm"
+              className="bg-primary hover:bg-primary-hover text-white px-10 py-5 rounded-xl font-semibold text-lg transition-all hover:scale-105 shadow-lg shadow-primary/20"
             >
-              Generate Your First 3 Ads Free
+              Try for free
             </Link>
           </motion.div>
 
@@ -88,39 +113,39 @@ export default function Home() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.3 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto"
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
           >
             {/* PAS Card */}
-            <div className="bg-surface border border-border rounded-xl p-6 text-left">
-              <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-gradient-to-br from-surface to-surface/50 border border-border/50 rounded-2xl p-8 text-left hover:border-primary/30 transition-all group">
+              <div className="w-12 h-12 bg-red-500/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-red-500/20 transition-colors">
+                <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-white font-semibold mb-2">Problem-Agitate-Solution</h3>
-              <p className="text-zinc-500 text-sm">Call out the pain. Make it hurt. Offer the solution.</p>
+              <h3 className="text-white font-bold text-lg mb-3">Problem-Agitate-Solution</h3>
+              <p className="text-zinc-400 text-sm leading-relaxed">Call out the pain. Make it hurt. Offer the solution.</p>
             </div>
 
             {/* Social Proof Card */}
-            <div className="bg-surface border border-border rounded-xl p-6 text-left">
-              <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-gradient-to-br from-surface to-surface/50 border border-border/50 rounded-2xl p-8 text-left hover:border-primary/30 transition-all group">
+              <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-blue-500/20 transition-colors">
+                <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
-              <h3 className="text-white font-semibold mb-2">Social Proof</h3>
-              <p className="text-zinc-500 text-sm">Lead with numbers. Show results. Invite them to join.</p>
+              <h3 className="text-white font-bold text-lg mb-3">Social Proof</h3>
+              <p className="text-zinc-400 text-sm leading-relaxed">Lead with numbers. Show results. Invite them to join.</p>
             </div>
 
             {/* Transformation Card */}
-            <div className="bg-surface border border-border rounded-xl p-6 text-left">
-              <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-gradient-to-br from-surface to-surface/50 border border-border/50 rounded-2xl p-8 text-left hover:border-primary/30 transition-all group">
+              <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-green-500/20 transition-colors">
+                <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
               </div>
-              <h3 className="text-white font-semibold mb-2">Transformation</h3>
-              <p className="text-zinc-500 text-sm">Show where they are. Paint where they could be.</p>
+              <h3 className="text-white font-bold text-lg mb-3">Transformation</h3>
+              <p className="text-zinc-400 text-sm leading-relaxed">Show where they are. Paint where they could be.</p>
             </div>
           </motion.div>
         </div>
